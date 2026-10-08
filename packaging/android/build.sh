@@ -34,7 +34,10 @@ while [ $# -gt 0 ]; do
 done
 
 NDK="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-}}"
-[ -n "$NDK" ] && [ -d "$NDK" ] || { echo "error: set ANDROID_NDK_HOME to the Android NDK" >&2; exit 1; }
+if [ -z "$NDK" ] || [ ! -d "$NDK" ]; then
+  echo "error: set ANDROID_NDK_HOME to the Android NDK" >&2
+  exit 1
+fi
 case "$(uname -s)" in
   Linux) HOST=linux-x86_64 ;;
   Darwin) HOST=darwin-x86_64 ;; # the NDK's macOS toolchain is universal under this name
