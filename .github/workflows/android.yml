@@ -1,0 +1,68 @@
+# Builds the Android app (apps/lightcraft-android in packaging/android) and uploads the APK.
+# See docs/android.md. The APK is signed with a throwaway debug key: install it for testing
+# (uninstall an APK from an earlier run first; each run's key differs).
+name: Android
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - Cargo.toml
+      - Cargo.lock
+      - "apps/lightcraft-android*/**"
+      - "crates/**"
+      - "packaging/android/**"
+      - "packaging/env.sh"
+      - .github/workflows/android.yml
+  workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  NDK_VERSION: 27.2.12479018
+
+jobs:
+  apk:
+    name: APK (arm64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: android
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Android SDK and NDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-35 build-tools;35.0.0 ndk;${{ env.NDK_VERSION }}"
+          log-accepted-android-sdk-licenses: false
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+      - name: Clippy (Android target)
+        run: cargo clippy -p lightcraft-android -p lightcraft-android-main --target aarch64-linux-android -- -D warnings
+      - name: Build the APK
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION"
+          packaging/android/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lightcraft-android
+          path: dist/release/*.apk
+          if-no-files-found: error

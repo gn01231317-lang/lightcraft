@@ -1,0 +1,67 @@
+plugins {
+    id "com.android.application"
+}
+
+// build.sh passes the version (workspace Cargo.toml) and the folder holding what it built:
+// jniLibs/<abi>/libmain.so and res/mipmap-*/ic_launcher.png (from assets/app-icon).
+def lcGenerated = (project.findProperty("lightcraftGenerated") ?: "${rootDir}/../../target/android").toString()
+def lcVersion = (project.findProperty("lightcraftVersion") ?: "0.0.0").toString()
+def lcCode = lcVersion.tokenize(".-").take(3).collect { it.isInteger() ? it.toInteger() : 0 }
+while (lcCode.size() < 3) { lcCode << 0 }
+
+android {
+    namespace "ai.storyteller.lightcraft"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "ai.storyteller.lightcraft"
+        // Vulkan, scoped storage
+        minSdk 29
+        targetSdk 35
+        versionCode lcCode[0] * 10000 + lcCode[1] * 100 + lcCode[2]
+        versionName lcVersion
+        ndk {
+            abiFilters "arm64-v8a", "x86_64"
+        }
+    }
+
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ["${lcGenerated}/jniLibs"]
+            res.srcDirs = ["${lcGenerated}/res"]
+        }
+    }
+
+    // No release key in the repository: release builds are signed with the debug key unless one
+    // is given (LIGHTCRAFT_ANDROID_KEYSTORE, …_KEYSTORE_PASSWORD, …_KEY_ALIAS, …_KEY_PASSWORD).
+    def keystore = System.getenv("LIGHTCRAFT_ANDROID_KEYSTORE")
+    signingConfigs {
+        if (keystore) {
+            release {
+                storeFile file(keystore)
+                storePassword System.getenv("LIGHTCRAFT_ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("LIGHTCRAFT_ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("LIGHTCRAFT_ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig keystore ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    packagingOptions {
+        jniLibs {
+            // keep libmain.so uncompressed and page-aligned in the APK
+            useLegacyPackaging false
+        }
+    }
+}

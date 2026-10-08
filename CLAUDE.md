@@ -1,6 +1,6 @@
 # LightCraft — instructions for agents
 
-LightCraft is a clean-room, open-source, pure-Rust photo library + non-destructive raw developer targeting Adobe Lightroom parity (and beyond). Native on macOS, Windows, Linux; web via WASM. Sibling of `../pdfcraft` (Acrobat), `../photocraft` (Photoshop), `../vectorcraft` (Illustrator) and `../filmcraft` (Premiere), with the same conventions.
+LightCraft is a clean-room, open-source, pure-Rust photo library + non-destructive raw developer targeting Adobe Lightroom parity (and beyond). Native on macOS, Windows, Linux and Android; web via WASM. Sibling of `../pdfcraft` (Acrobat), `../photocraft` (Photoshop), `../vectorcraft` (Illustrator) and `../filmcraft` (Premiere), with the same conventions.
 
 ## Start every session here
 1. Read `plan/STATUS.md` (current milestone, next unchecked task, blockers).
@@ -34,7 +34,9 @@ of it. Full standard: `../craftrules/standards/never-crash.md`
   "unsupported" error or is disabled. Sole exception: a provably infallible literal, as `#[allow(clippy::expect_used)]`
   + `.expect("why it can't fail")`.
 - **`unsafe` lives only in `crates/sysmem`** (one FFI call, `malloc_zone_pressure_relief`, that returns freed
-  allocator pages to macOS after raw decodes). Every other production crate root has `#![forbid(unsafe_code)]`. A new
+  allocator pages to macOS after raw decodes) **and `apps/lightcraft-android-main`** (Android's `libmain.so`: the
+  `android_main` export and one JNI cast of the activity reference, behind the safe `lightcraft_android::Host` trait;
+  the app itself, `apps/lightcraft-android`, forbids it). Every other production crate root has `#![forbid(unsafe_code)]`. A new
   unsafe need goes in an isolated, well-tested helper crate like it: `// SAFETY:` on every block, a safe API, a safe
   fallback where possible, and a line here naming it.
 - **Input-derived numbers are hostile:** `get()` instead of `[i]`/`[a..b]` for offsets from files, users, agents or
@@ -118,7 +120,8 @@ of it. Full standard: `../craftrules/standards/never-crash.md`
 
 ## Map of the code
 `geom`, `color`, `raster`, `tiff` (L0) → `raw`, `codecs`, `meta`, `develop` (L1) → `pipeline` → `catalog` → `engine`
-→ `ui-egui`, `mcp` (L5) → apps `lightcraft` (desktop), `lightcraft-cli` (render/commands/MCP). `scenes` generates demo
+→ `ui-egui`, `mcp` (L5) → apps `lightcraft` (desktop), `lightcraft-cli` (render/commands/MCP), `lightcraft-web`,
+`lightcraft-android` (+ `lightcraft-android-main`, its JNI glue; `docs/android.md`). `scenes` generates demo
 photos. `xtask` = tooling (`ci`, `layers`, `assets`, `parity`, `wasm`, `corpus`, `stats`). `flake.nix` +
 `nix/package.nix` = the Nix package (`nix build` builds both binaries with the craft-fonts input, installs the
 desktop file/icons/AppStream metadata and runs `cargo test --workspace`; `nix develop` = dev shell). Community-maintained and not
