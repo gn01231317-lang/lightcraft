@@ -1,0 +1,22 @@
+[package]
+name = "lightcraft-android-main"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "LightCraft on Android: libmain.so, the activity's library (JNI glue around lightcraft-android; build with packaging/android/build.sh)"
+
+[lints]
+workspace = true
+
+[lib]
+# NativeActivity loads lib<android.app.lib_name>.so: libmain.so (packaging/android)
+name = "main"
+crate-type = ["cdylib"]
+
+# Android-only, like lightcraft-android: empty elsewhere.
+[target.'cfg(target_os = "android")'.dependencies]
+lightcraft-android = { path = "../lightcraft-android" }
+android-activity = { version = "0.6", features = ["native-activity"] }
+# the same major version as android-activity's, so its JavaVM singleton is shared
+jni = "0.22"

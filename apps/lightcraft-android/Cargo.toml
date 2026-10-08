@@ -1,0 +1,25 @@
+[package]
+name = "lightcraft-android"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "LightCraft on Android: the app around the egui UI (the activity's library is lightcraft-android-main)"
+
+[lints]
+workspace = true
+
+# Everything is Android-only: on other targets this crate is empty, so workspace builds,
+# tests and clippy runs stay unaffected.
+[target.'cfg(target_os = "android")'.dependencies]
+lightcraft-engine = { workspace = true }
+lightcraft-ui-egui = { workspace = true }
+lightcraft-codecs = { workspace = true }
+lightcraft-raster = { workspace = true }
+eframe = { workspace = true, features = ["default_fonts", "wgpu", "android-native-activity"] }
+egui = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }
+# the same version winit uses (its AndroidApp type)
+android-activity = { version = "0.6", features = ["native-activity"] }
+android_logger = { version = "0.15", default-features = false }

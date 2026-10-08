@@ -330,6 +330,7 @@ cargo run --release -p lightcraft -- ~/Pictures/trip    # import your photos (fo
 cargo run --release -p lightcraft -- --memory           # a throwaway in-memory demo session (writes nothing)
 cargo run --release -p lightcraft -- --control 7980     # with the automation channel
 cargo xtask web --serve                                 # the same app in the browser: http://127.0.0.1:8080/
+packaging/android/build.sh                              # the same app on Android: an APK (early; see docs/android.md)
 cargo run --release -p lightcraft-cli -- render photo.jpg -o out.jpg --set light.exposure=0.5
 cargo xtask ci                                          # fmt, clippy, tests, layering, wasm checks
 ```

@@ -14,3 +14,8 @@ plan/
 # model weights are never committed (SAM 3: docs/ai-masks.md)
 *.safetensors
 *.safetensors.part
+# Android (packaging/android): Gradle state and outputs
+/packaging/android/.gradle/
+/packaging/android/build/
+/packaging/android/app/build/
+/packaging/android/local.properties
