@@ -27,6 +27,8 @@ pub mod theme;
 pub mod widgets;
 
 #[cfg(test)]
+mod tests_compact;
+#[cfg(test)]
 mod tests_curve;
 #[cfg(test)]
 mod tests_grid;
@@ -789,17 +791,40 @@ impl LightcraftApp {
         // right panels and left panel run to the bottom; the bottom bar sits between them).
         panels::topbar::show(self, ui);
         panels::library_problem::banner(self, ui);
-        panels::strip::show(self, ui);
-        if self.ui.right != state::RightPanel::None {
-            panels::right::show(self, ui);
+        let compact = panels::compact::is_compact(&ctx);
+        if compact {
+            // phone layout (see `panels::compact`): tool tabs along the bottom edge, the bottom
+            // bar above them, the open panel in a sheet above that; the sidebar takes the window
+            panels::compact::tabs(self, ui);
+            if self.ui.left_panel {
+                let source = self.session.source;
+                panels::compact::sidebar(self, ui);
+                // picking a source shows its photos
+                if self.session.source != source {
+                    self.ui.left_panel = false;
+                }
+                self.after_panels(&ctx, t0);
+                return;
+            }
+            panels::bottombar::show(self, ui);
+            if self.ui.presets {
+                panels::compact::sheet(ui, |ui| panels::presets::contents(self, ui));
+            } else if self.ui.right != state::RightPanel::None {
+                panels::compact::sheet(ui, |ui| panels::right::contents(self, ui));
+            }
+        } else {
+            panels::strip::show(self, ui);
+            if self.ui.right != state::RightPanel::None {
+                panels::right::show(self, ui);
+            }
+            if self.ui.presets {
+                panels::presets::show(self, ui);
+            }
+            if self.ui.left_panel {
+                panels::left::show(self, ui);
+            }
+            panels::bottombar::show(self, ui);
         }
-        if self.ui.presets {
-            panels::presets::show(self, ui);
-        }
-        if self.ui.left_panel {
-            panels::left::show(self, ui);
-        }
-        panels::bottombar::show(self, ui);
         let t = theme::Tokens::get(&ctx);
         let bg = if matches!(self.ui.view, state::ViewMode::Detail | state::ViewMode::Compare | state::ViewMode::Survey | state::ViewMode::Reference)
         {
@@ -815,6 +840,12 @@ impl LightcraftApp {
             state::ViewMode::Reference => panels::compare::show_reference(self, ui),
             state::ViewMode::People => panels::people::show(self, ui),
         });
+        self.after_panels(&ctx, t0);
+    }
+
+    /// Windows, dialogs and overlays drawn over the panels, then the frame's bookkeeping.
+    fn after_panels(&mut self, ctx: &egui::Context, t0: f64) {
+        let ctx = ctx.clone();
         panels::second::show(self, &ctx);
         panels::notices::show(self, &ctx);
         panels::dialogs::show(self, &ctx);

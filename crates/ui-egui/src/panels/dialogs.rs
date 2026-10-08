@@ -103,7 +103,14 @@ pub fn show(app: &mut LightcraftApp, ctx: &egui::Context) {
     }
     .to_string();
     let frame = egui::Frame::window(&ctx.global_style()).inner_margin(egui::Margin::symmetric(16, 12));
-    let shown = egui::Window::new(crate::i18n::tr(&title)).id(egui::Id::new("lightcraft-dialog"))
+    let window = egui::Window::new(crate::i18n::tr(&title)).id(egui::Id::new("lightcraft-dialog"));
+    // phone layout: the dialog stays on screen and scrolls (its rows are laid out for a desktop)
+    let window = if super::compact::is_compact(ctx) {
+        window.max_width(screen.width() - 48.0).max_height(screen.height() - 120.0).scroll([true, true])
+    } else {
+        window
+    };
+    let shown = window
         .collapsible(false)
         .resizable(false)
         .frame(frame)

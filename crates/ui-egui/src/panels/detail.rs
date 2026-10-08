@@ -142,7 +142,9 @@ pub fn show(app: &mut LightcraftApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     let full = ui.max_rect();
     let fullscreen = app.ui.fullscreen;
-    let show_film = app.ui.filmstrip && !fullscreen;
+    // phone layout: the filmstrip makes way for an open panel sheet
+    let sheet_open = super::compact::is_compact(ui.ctx()) && (app.ui.presets || app.ui.right != crate::state::RightPanel::None);
+    let show_film = app.ui.filmstrip && !fullscreen && !sheet_open;
     let film_h = if show_film { t.film_h } else { 0.0 };
     let canvas = Rect::from_min_max(full.min, pos2(full.right(), full.bottom() - film_h));
     app.canvas_rect = Some(canvas);
@@ -806,6 +808,7 @@ fn general_interaction(
         app.ui.zoom = Zoom::Fit;
         app.ui.zoom_anim = true;
     }
+    pinch_zoom(app, ui, img, canvas, native, aspect);
     if zoomed {
         // only over the photo: a panel drawn earlier (sliders) must keep its own cursor
         if resp.dragged() || resp.hovered() {
@@ -818,6 +821,29 @@ fn general_interaction(
         }
     }
     let _ = (native, aspect);
+}
+
+/// Two fingers on the photo (touch screens, trackpad pinch): spreading them zooms in around the
+/// view's centre, pinching back down to the fitted size returns to Fit, and moving them pans.
+fn pinch_zoom(app: &mut LightcraftApp, ui: &egui::Ui, img: Rect, canvas: Rect, native: [usize; 2], aspect: f32) {
+    let Some(mt) = ui.input(|i| i.multi_touch()) else { return };
+    if !canvas.contains(mt.center_pos) || img.width() < 1.0 || img.height() < 1.0 || native[0] == 0 {
+        return;
+    }
+    let ppp = ui.ctx().pixels_per_point();
+    // Zoom::Percent(p): p % = one image pixel per physical screen pixel
+    let percent = |r: Rect| r.width() * ppp / native[0] as f32 * 100.0;
+    let fit = percent(fit_rect(canvas, aspect, Zoom::Fit, native, ppp, (0.5, 0.5)));
+    if (mt.zoom_delta - 1.0).abs() > 1e-4 && mt.zoom_delta.is_finite() {
+        let next = percent(img) * mt.zoom_delta;
+        app.ui.zoom = if next <= fit * 1.01 { Zoom::Fit } else { Zoom::Percent(next.round().clamp(1.0, 1600.0) as u32) };
+        app.ui.zoom_anim = false;
+    }
+    if !matches!(app.ui.zoom, Zoom::Fit) {
+        let d = mt.translation_delta;
+        app.ui.pan.0 = (app.ui.pan.0 - d.x / img.width()).clamp(0.0, 1.0);
+        app.ui.pan.1 = (app.ui.pan.1 - d.y / img.height()).clamp(0.0, 1.0);
+    }
 }
 
 // ------------------------------------------------------------------------ crop

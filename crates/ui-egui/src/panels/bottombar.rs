@@ -17,6 +17,7 @@ pub fn show(app: &mut LightcraftApp, ui: &mut egui::Ui) {
         .frame(egui::Frame::NONE.fill(t.chrome).inner_margin(egui::Margin { left: 12, right: 12, top: 0, bottom: 0 }))
         .show(ui, |ui| {
             let full = ui.max_rect();
+            let compact = super::compact::is_compact(ui.ctx());
             let left_end = ui
                 .horizontal_centered(|ui| {
                     ui.spacing_mut().item_spacing.x = 2.0;
@@ -27,7 +28,11 @@ pub fn show(app: &mut LightcraftApp, ui: &mut egui::Ui) {
                         ("compare", Icon::Compare, ViewMode::Compare, "Compare (Shift+C)"),
                         ("survey", Icon::Survey, ViewMode::Survey, "Survey (N)"),
                         ("people", Icon::Subject, ViewMode::People, "People"),
-                    ] {
+                    ]
+                    .into_iter()
+                    // phone layout: Survey and People stay in the View menu
+                    .filter(|(_, _, mode, _)| !compact || !matches!(mode, ViewMode::Survey | ViewMode::People))
+                    {
                         if icon_button(ui, id, icon, vec2(32.0, 32.0), app.ui.view == mode, true, tip).clicked() {
                             let _ = app.run(&format!("view.{id}"), json!({}));
                         }
@@ -166,7 +171,9 @@ fn right_side(app: &mut LightcraftApp, ui: &mut egui::Ui, full: Rect) -> f32 {
         {
             let _ = app.run("view.beforeAfter", json!({}));
         }
+        let compact = super::compact::is_compact(child.ctx());
         if app.ui.view == ViewMode::Detail
+            && !compact
             && icon_button(&mut child, "faceBoxes", Icon::FaceBox, vec2(30.0, 30.0), app.ui.face_boxes, true, "Face boxes").clicked()
         {
             let _ = app.run("view.faceBoxes", json!({}));
@@ -196,6 +203,10 @@ fn right_side(app: &mut LightcraftApp, ui: &mut egui::Ui, full: Rect) -> f32 {
                 }
             }
         });
+        // phone layout: no room for the click-zoom ratio (double-tap still zooms to it)
+        if compact {
+            return if child.min_rect().width() > 0.0 { child.min_rect().left() } else { full.right() };
+        }
         child.add_space(6.0);
         let cz = crate::widgets::dropdown(
             &mut child,

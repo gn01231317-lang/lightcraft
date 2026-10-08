@@ -337,9 +337,14 @@ pub fn handle(app: &mut LightcraftApp, ctx: &egui::Context, req: &ControlRequest
 /// Shown when an export has nowhere to go (no folder typed or chosen, and no home folder to default to).
 pub const NO_EXPORT_FOLDER: &str = "Choose an export folder first.";
 
-/// Default export folder: `~/Pictures/LightCraft Exports` (`%USERPROFILE%\Pictures\LightCraft Exports`
-/// on Windows, where `HOME` usually isn't set). Empty when no home folder is known.
+/// Default export folder: `$LIGHTCRAFT_EXPORT_DIR` when set (the Android app points it at the
+/// phone's shared `Pictures/LightCraft`), else `~/Pictures/LightCraft Exports`
+/// (`%USERPROFILE%\Pictures\LightCraft Exports` on Windows, where `HOME` usually isn't set). Empty
+/// when no home folder is known.
 pub fn default_export_dir() -> String {
+    if let Some(d) = std::env::var_os("LIGHTCRAFT_EXPORT_DIR").filter(|d| !d.is_empty()) {
+        return d.to_string_lossy().into_owned();
+    }
     let home = if cfg!(windows) { std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) } else { std::env::var_os("HOME") };
     home.filter(|h| !h.is_empty())
         .map(|h| std::path::PathBuf::from(h).join("Pictures").join("LightCraft Exports").to_string_lossy().into_owned())

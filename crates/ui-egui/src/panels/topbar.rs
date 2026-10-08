@@ -16,14 +16,18 @@ pub fn show(app: &mut LightcraftApp, ui: &mut egui::Ui) {
         .frame(egui::Frame::NONE.fill(t.chrome).inner_margin(egui::Margin { left, right: 12, top: 0, bottom: 0 }))
         .show(ui, |ui| {
             let full = ui.max_rect();
+            // phone layout: no forward button, the menus under one "Menu", and only the Export and
+            // Activity icons on the right (the others are in the menus); the search field fills
+            // what is left between them
+            let compact = super::compact::is_compact(ui.ctx());
             let mut sw = 640.0f32.min(full.width() - 460.0).max(200.0);
-            if !app.native_menu {
+            if !app.native_menu && !compact {
                 // leave room for the in-window menus left of the (centred) search field
                 let menus_right = full.left() + 140.0 + crate::menubar::bar_width(ui) + 24.0;
                 sw = sw.min(2.0 * (full.center().x - menus_right)).max(200.0);
             }
             let search_left = full.center().x - sw / 2.0;
-            ui.horizontal_centered(|ui| {
+            let left_end = ui.horizontal_centered(|ui| {
                 ui.spacing_mut().item_spacing.x = 4.0;
                 if icon_button(ui, "sidebar", Icon::Sidebar, vec2(30.0, 30.0), app.ui.left_panel, true, "Show/hide My Photos panel").clicked() {
                     let _ = app.run("view.leftPanel", json!({}));
@@ -32,16 +36,33 @@ pub fn show(app: &mut LightcraftApp, ui: &mut egui::Ui) {
                 if icon_button(ui, "back", Icon::Back, vec2(30.0, 30.0), false, true, "Back").clicked() {
                     let _ = app.run("view.back", json!({}));
                 }
-                icon_button(ui, "forward", Icon::Forward, vec2(30.0, 30.0), false, false, "Forward");
+                if !compact {
+                    icon_button(ui, "forward", Icon::Forward, vec2(30.0, 30.0), false, false, "Forward");
+                }
                 if !app.native_menu {
                     // no native menu bar (web, Windows, Linux): menus in the top bar
-                    ui.add_space(10.0);
-                    let room = search_left - ui.cursor().left() - 16.0;
+                    ui.add_space(if compact { 4.0 } else { 10.0 });
+                    let room = if compact { 0.0 } else { search_left - ui.cursor().left() - 16.0 };
                     crate::menubar::show_in_window(app, ui, room);
                 }
+                ui.min_rect().right()
             });
-            // search field (centred on the window)
-            let sr = Rect::from_center_size(pos2(full.center().x, full.center().y), vec2(sw, 28.0));
+            let left_end = left_end.inner;
+            // the filter icon and the right-hand icons (two in the phone layout)
+            let right_icons = if !compact {
+                5.0
+            } else if app.session.unsaved().is_some() {
+                3.0
+            } else {
+                2.0
+            };
+            // search field (centred on the window; in the phone layout, between the side groups)
+            let sr = if compact {
+                let (l, r) = (left_end + 8.0, full.right() - 18.0 - 40.0 * (right_icons - 1.0) - 22.0 - 36.0);
+                Rect::from_min_max(pos2(l, full.center().y - 14.0), pos2(r.max(l + 60.0), full.center().y + 14.0))
+            } else {
+                Rect::from_center_size(pos2(full.center().x, full.center().y), vec2(sw, 28.0))
+            };
             let id = egui::Id::new("search-field");
             if std::mem::take(&mut app.ui.focus_search) {
                 ui.memory_mut(|m| m.request_focus(id));
@@ -128,7 +149,11 @@ pub fn show(app: &mut LightcraftApp, ui: &mut egui::Ui) {
                 ("help", Icon::Help, "Keyboard shortcuts", "app.shortcuts"),
                 ("share", Icon::Share, "Export", "dialog.export"),
                 ("bell", Icon::Bell, "Activity", "panel.activity"),
-            ] {
+            ]
+            .into_iter()
+            // the unsaved-changes warning stays visible on a phone too
+            .filter(|(id, ..)| !compact || matches!(*id, "share" | "bell") || (*id == "cloud" && unsaved.is_some()))
+            {
                 let r = Rect::from_center_size(pos2(x, full.center().y), vec2(28.0, 28.0));
                 let resp = ui.interact(r, egui::Id::new(("top", id)), Sense::click()).on_hover_text(tip);
                 register(ui.ctx(), format!("icon:{id}"), r);
